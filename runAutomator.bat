@@ -1,0 +1,1 @@
+powershell -ExecutionPolicy Bypass .\guarantorAutomation.ps1
