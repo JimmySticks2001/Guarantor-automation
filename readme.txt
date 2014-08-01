@@ -1,4 +1,4 @@
-guarantorAutomation v0.1.1
+guarantorAutomation v0.1.2
 
 Written by Tim Lightfoot, TLightfoot@ntst.com, tlightfo@gmail.com
 
@@ -9,6 +9,10 @@ Version history
 	Initial build
 
 07/30/2014 v0.1.1
+	Added unblocking the WASP.dll after copying it from the network drive.
+	Added -ExecutionPolicy Bypass to .bat file.
+
+08/01/2014 v0.1.2
 	Added unblocking the WASP.dll after copying it from the network drive.
 	Added -ExecutionPolicy Bypass to .bat file.
 
