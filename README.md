@@ -1,9 +1,12 @@
-guarantorAutomation v0.1.1
+guarantorAutomation v0.1.2
 ==========================
 Written by Tim Lightfoot, TLightfoot@ntst.com, tlightfo@gmail.com
 
 Version histroy
 ---------------
+
+#####v0.1.2 08/01/2014
+* Added Categories Available for Review entry.
 
 #####v0.1.1 07/30/2014
 * Added unblocking the WASP.dll after copying it from the network drive.
