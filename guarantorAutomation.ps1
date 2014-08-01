@@ -113,9 +113,11 @@ if(!$filePath)
 # in the workbook. It is faster for PowerShell to import data from a CSV file rather than importing directly from Excel. The
 # temporary file will be placed in the user's temp directory and will be removed whenever Windows feels like it or at the end of 
 # this script.
-"creating temp csv filepath"
-$csvFile = ($env:temp + "\" + ((Get-Item -path $filePath).name).Replace(((Get-Item -path $filePath).extension),".csv"))
-Remove-File $csvFile                                #remove and previous version of the temporary file
+"creating temp csv filepaths"
+$csvGuarantor = ($env:temp + "\Guarantor.csv")
+$csvInsurance = ($env:temp + "\Insurance.csv")
+Remove-File $csvGuarantor                           #remove and previous versions of the temporary files
+Remove-File $csvInsurance
 
 "opening PM workbook"
 $excel = new-object -comobject excel.application    #start a new Excel COM object
@@ -134,7 +136,7 @@ foreach($worksheetIterator in $workbook.worksheets)
     #If we found the sheet named macroGuarantors, assign it to a variable, notify the user, and exit the loop.
     if($temp -eq "macroGuarantors")
     {
-        $worksheet = $worksheetIterator
+        $worksheetGuarantors = $worksheetIterator
         Write-Host ""
         Write-Host "found sheet"
         break
@@ -142,29 +144,68 @@ foreach($worksheetIterator in $workbook.worksheets)
 }
 
 #If we didn't find the sheet, inform the user and exit the script.
-if($worksheet.name -ne "macroGuarantors")
+if($worksheetGuarantors.name -ne "macroGuarantors")
 {
     [System.Windows.Forms.MessageBox]::Show("Could not find the macroGuarantors tab in the chosen workbook. Ending script." , "Error")
     Exit
 }
 
-"creating temp csv file"
-$worksheet.SaveAs($csvFile, 6)    #Save the Guarantor worksheet as a CSV file
-$workbook.Saved = $True           #Mark the workbook as saved so it won't prompt if you want to save before closing
+"finding macroInsurance_Charge sheet"
+#Loop throught each sheet to find the macroInsurance_Charge sheet. This way the sheet can move around and we can still find it.
+foreach($worksheetIterator in $workbook.worksheets)
+{
+    $temp = $worksheetIterator.name
+    
+    #Print the current sheet to the console, this will show the user that something is happening as it takes a while to find the sheet.
+    Write-Host "`r$temp                               " -NoNewLine
+
+    #If we found the sheet named D_Insureance_Charge_Cat, assign it to a variable, notify the user, and exit the loop.
+    if($temp -eq "macroInsurance_Charge")
+    {
+        $worksheetInsurance = $worksheetIterator
+        Write-Host ""
+        Write-Host "found sheet"
+        break
+    }
+}
+
+#If we didn't find the sheet, inform the user and exit the script.
+if($worksheetInsurance.name -ne "macroInsurance_Charge")
+{
+    [System.Windows.Forms.MessageBox]::Show("Could not find the macroInsurance_Charge tab in the chosen workbook. Ending script." , "Error")
+    Exit
+}
+
+"creating temp csv files"
+$worksheetGuarantors.SaveAs($csvGuarantor, 6)    #Save the macroGuarantors worksheet as a CSV file
+$worksheetInsurance.SaveAs($csvInsurance, 6)     #Save the macroInsurance_Charge worksheet as a CSV file
+$workbook.Saved = $True                          #Mark the workbook as saved so it won't prompt if you want to save before closing
 "closing PM workbook"
-$workbook.Close()                 #Close the workbook
-$excel.Quit()                     #Close Excel
+$workbook.Close()                           #Close the workbook
+$excel.Quit()                               #Close Excel
 [System.Runtime.Interopservices.Marshal]::ReleaseComObject($excel) | Out-Null    #Release the Excel COM object because we have to
 [System.GC]::Collect()            #Tell garbage collection to do it's thing
 [System.GC]::WaitForPendingFinalizers()
 
-"importing temp csv file into memory"
-#Import the CSV file into an array.
-$guarantorsCSV = Import-Csv -path $csvFile
+"importing temp csv files into memory"
+#Import the guarantors CSV file into a list.
+$guarantorsCSV = Import-Csv -path $csvGuarantor
+#$insuranceCSV = Import-Csv -path $csvInsurance
 
-"removing temp csv file"
-#Remove the csv file we created, we no longer need it.
-Remove-File $csvFile 
+#Import the guarantors CSV file into an array.
+$insuranceArray = @()
+Import-Csv -path $csvInsurance |`
+    ForEach-Object{
+        $insuranceArray += $_.Boop
+    }
+
+#Sort the insurance charge catagories by alphabetical order, this is they way they are listed in the guarantors form.
+$insuranceArray = $insuranceArray | Sort-Object
+
+"removing temp csv files"
+#Remove the csv files we created, we no longer need them.
+Remove-File $csvGuarantor
+Remove-File $csvInsurance
 
 "awaiting user input"
 #Tell the user that Avatar should be open to the Guarantors/Payors form.
@@ -355,7 +396,34 @@ For($row = 0; $row -lt $guarantorsCSV.Count; $row++)
     Send-String "{TAB}"
 
     #Categories Available for Review
-    Send-String "{TAB}"
+    if([string]::IsNullOrEmpty($guarantorsCSV[0].21))
+    {
+        Send-String "{TAB}"
+    }
+    else
+    {
+        $categories = $guarantorsCSV[$row].21
+        $categoriesSplit = $categories.split("+") | Sort-Object
+
+        $oldIndex = 0
+        foreach($catagory in $categoriesSplit)
+        {
+            $newIndex = $insuranceArray.IndexOf($catagory)
+            $currentIndex = $newIndex - $oldIndex
+            $oldIndex = $newIndex
+
+            for($i = 0; $i -lt $currentIndex; $i++)
+            {
+                #press down arrow $currentIndex number of times
+                Select-Window javaw | Send-Keys "{DOWN}"
+                Start-Sleep -Milliseconds 250
+            }
+
+            Send-String " "
+        }
+
+        Send-String "{TAB}"
+    }
 
     #Generate No-Pay ##0 Claims (Yes, For Discharged Clients Only option)
     Send-String "{TAB}"
